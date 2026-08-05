@@ -7,8 +7,7 @@
 % \documentclass[journal]{../sty/IEEEtran}
 
 
-\usepackage{graphics} % for pdf, bitmapped graphics files
-\usepackage{epsfig} % for postscript graphics files
+\usepackage{graphicx}
 \usepackage{mathptmx} %  It supersedes both the original times and the mathptm packages.
 \usepackage{amsthm}
 \usepackage{amsmath} % assumes amsmath package installed
@@ -68,8 +67,9 @@
 % Linebreaks \\ can be used within to get better formatting as desired.
 % Do not put math or special symbols in the title.
 \title{
-%From Cryptographic Protection to Situation-Aware Assurance: Securing Future Satellite Operations 
-Beyond Cryptographic Validity: Situation-Aware Security for Future Satellite Operations
+From Cryptographic Protection to State- and Role-Aware Assurance: Securing Future Satellite Operations 
+%Beyond Cryptographic Validity: Situation-Aware Security for Future Satellite Operations
+%Beyond Cryptographic Validity: State- and Role-Aware Assurance for Future Satellite Operations
 } 
 
 \author{
@@ -130,20 +130,22 @@ XXXX
 \section{Introduction} %500~800 words
 \label{sec:Intro}
 %系统演进趋势：网络化、多功能、自主性强
-Future satellite systems are evolving from remotely commanded communication terminals into networked, multi-functional, and increasingly autonomous computing platforms. 
+Future satellite systems are evolving from remotely commanded communication terminals into networked, multi-functional, and increasingly autonomous computing platforms \cite{kodheli2020satellite}. 
 %趋势导致星上安全的重要性和内涵的提升：从数据保护到复杂状态下的保护
-As information processing, computing, and decision-making capabilities increasingly migrate from the ground to onboard satellite systems, both the importance and the scope of onboard security are expanding accordingly. 
-In addition to communication data, security mechanisms must now protect increasingly complex onboard states, processing logic, and control procedures. 
+As information processing, computing, and decision-making capabilities increasingly migrate from the ground to onboard satellite systems, the attack surface expands from communication data to onboard states, processing logic, and control procedures
+\cite{thangavel2024artificial}. 
 
 %建立基线：卫星系统各个层级的协议栈都有成熟的密码保护机制
 Satellite communication systems have developed a broad range of cryptographic protection mechanisms across multiple protocol layers. Representative examples include the CCSDS Space Data Link Security Protocol \cite{ccsds2022sdls} for conventional space links and Internet security protocols (e.g., IPsec) that can be adapted to emerging IP-based integrated space--terrestrial networks \cite{ahmad2022security}. 
+These mechanisms establish cryptographic validity by authenticating message origins, protecting message integrity, and preserving confidentiality.
 %基线问题：密码学有效不等于操作合法，即Cryptographic validity does not guarantee operational legitimacy
-These mechanisms can authenticate message origins, ensure message integrity, and protect message confidentiality.
-However, cryptographic validity alone does not guarantee operational legitimacy. 
-A message may be correctly authenticated and integrity-protected, yet still be inappropriate under the current operational context. 
-For example, a telemetry, tracking, and command (TT\&C) command originating from a compromised user terminal should neither be executed nor even forwarded to the onboard command and data handling computer, because a user terminal is not authorized to perform spacecraft control operations. 
-%亮明观点：从CIA triad到situation-aware security
-Future satellite security must extend beyond the traditional CIA triad toward situation-aware protection that evaluates the operational legitimacy of authenticated actions and safeguards the correctness, continuity, and resilience of onboard operations.
+
+Cryptographic validity, however, does not guarantee operational legitimacy.
+A correctly authenticated and integrity-protected message may still be inadmissible under the current operational context.
+For example, a correctly authenticated Telemetry, Tracking, and Command (TT\&C) message injected through a compromised user terminal should still be rejected if the terminal's assigned role does not permit spacecraft control operations.
+
+% 核心观点：从密码保护扩展到情境感知保障
+Future satellite security must therefore complement conventional cryptographic protection with situation-aware assurance that evaluates whether an authenticated action is operationally legitimate under the current node role, system state, mission phase, and operational context, thereby safeguarding the correctness, continuity, and resilience of onboard operations.
 
 Addressing this gap gives rise to three fundamental challenges.
 %Challenge 1： 在多流明密态管理等复杂安全状态需要持续维护的情况下，如何实现高可信、抗攻击的状态管理？
@@ -155,7 +157,9 @@ The second challenge concerns XXXX
 %ground-side awareness of onboard security states. Ground operators need sufficient knowledge of onboard state evolution to diagnose anomalies, verify transitions, and coordinate recovery actions. However, satellite–ground links provide limited telemetry capacity, while many security states—such as active keys, detailed Security Association parameters, and internal protection configurations—cannot be directly exposed without introducing additional security risks. The resulting question is how to efficiently and accurately reconstruct onboard security states from limited and non-sensitive observations.
 
 %Challenge 3：在卫星系统日益网络化、分布式和自主化的背景下，如何充分发挥不同节点与运行环节的互补作用，对安全关键操作是否合法形成系统级判断？
-The third challenge concerns system-level verification of operational legitimacy. In increasingly networked, distributed, and autonomous satellite systems, relevant evidence is often fragmented across nodes and operational stages, and may be heterogeneous, partial, or inconsistent. The key question is how to design mechanisms that actively trigger and orchestrate the systematic use of such evidence to derive reliable security knowledge and judgments, while adapting to satellite-specific architectures and stringent SWaP constraints.
+The third challenge concerns system-level verification of operational legitimacy.
+As satellite systems become increasingly networked, distributed, and autonomous \cite{thangavel2024artificial}, security-relevant evidence becomes distributed across different nodes and operational stages and cannot always be interpreted reliably in isolation.
+Such evidence may be heterogeneous, partial, or even inconsistent. The key challenge is therefore to design mechanisms that actively elicit, coordinate, and cross-validate this distributed evidence to support reliable security decisions, while accommodating satellite-specific architectures and stringent SWaP constraints.
 
 %解决3个挑战的大致思路
 This article aims to fill these gaps. 
@@ -192,7 +196,7 @@ The complexity of onboard security-state management is increasing along three cl
 % 2. 多流可以使用相同或不同的密钥，导致需要管理多对1的映射关系。
 % 3. 从预置密钥池演化到支持空中更新密钥，时间上涉及密钥生命周期管理的问题，空间上由于星地链路丢帧错帧，会涉及星地密钥同步问题。
 First, modern satellites simultaneously carry heterogeneous traffic flows with different criticality and protection requirements, making per-flow security management preferable to a single link-wide configuration. Mission-critical flows such as telecommands can further support both protected and clear modes \cite{huang2026toward} to preserve essential functions in the event of onboard cryptographic failures. 
-Second, each flow is associated with a corresponding Security Association (SA), while different SA may reference either distinct keys or a shared key. This creates nontrivial flow–SA–key dependency and mapping relationships, in which a change to one security object may affect multiple flows or processing contexts. 
+Second, each flow is associated with a corresponding Security Association (SA), while different SAs may reference either distinct keys or a shared key. This creates nontrivial flow–SA–key dependency and mapping relationships, in which a change to one security object may affect multiple flows or processing contexts. 
 Third, key management is evolving from the use of a statically preloaded key pool toward support for over-the-air key updates. This evolution introduces temporal complexity through key generation, activation, rollover, expiration, and revocation. It also introduces distributed-state consistency requirements, because the onboard and ground segments must maintain synchronized views of the active keys despite frame loss, transmission errors, delayed acknowledgments, and intermittent connectivity. 
 
 %密码算法和密钥计算没有变复杂，但决定何时、以何种状态调用密码计算的管理逻辑越来越复杂。
@@ -216,7 +220,7 @@ The following Subsections \ref{subsec:point1-DecoupledStructure} and \ref{subsec
 \subsection{Decoupled Architecture with Controlled Interfaces}
 \label{subsec:point1-DecoupledStructure}
 
-CCSDS \cite{ccsds2022sdls} provides a well-established precedent for the first principle by managing Security Associations (SAs) and cryptographic keys through separate but coordinated lifecycles.
+CCSDS \cite{ccsds2020sdlsep} provides a well-established precedent for the first principle by managing Security Associations (SAs) and cryptographic keys through separate but coordinated lifecycles.
 An SA transitions through \textit{Null, Unkeyed, Keyed, and Operational} states, whereas a key independently transitions through \textit{Pre-Activation, Active, Deactivated, and Destroyed} states.
 The two are associated through the \textit{Rekey SA} procedure.
 
@@ -278,12 +282,13 @@ For example, an RSAI may reference an existing SA, while the key associated with
 In this case, the OSMD unit rejects the frame without invoking the MTC unit.
 Thus, the RSAI identifies the SA claimed by the incoming frame, whereas the LSAC determines whether that SA remains locally valid and operationally usable.
 
-Once the RSAI has been resolved to an existing LSAC, the OSMD unit performs a lightweight anti-replay pre-check.
-We distinguish the \textit{Received Sequence Number} (RSN), carried in the incoming frame, from the \textit{Local Replay State} (LRS), which is maintained locally for the referenced SA.
+Once the RSAI has been resolved to an existing LSAC, the OSMD unit performs a lightweight anti-replay pre-check. 
+%用 extracted from the incoming frame 比 carried in the incoming frame 更严谨，因为 CCSDS 允许从 Sequence Number 字段或 IV 字段提取该值
+We distinguish the \textit{Received Sequence Number} (RSN), extracted from the incoming frame, from the \textit{Local Replay State} (LRS), which is the locally managed sequence number \cite{ccsds2022sdls} for the referenced SA.
 
 CCSDS SDLS provides the baseline anti-replay mechanism.
 The receiver first verifies the integrity of a protected frame and then compares the authenticated RSN with the corresponding LRS.
-The LRS is updated only after both checks have succeeded \cite{ccsds2022sdls}.
+The LRS is updated only after both checks have succeeded \cite{ccsds2022sdls}. 
 This ordering prevents an unauthenticated RSN from modifying the persistent replay state.
 Otherwise, an attacker could inject a sufficiently large sequence number and cause subsequent legitimate frames to be rejected, resulting in a persistent denial-of-service condition.
 However, the baseline ordering also requires every received frame, including an evident replay, to consume cryptographic processing time and energy.
@@ -387,7 +392,7 @@ Reconstruction then becomes a closed loop. After each contact, the ground verifi
 Suppose the first contact reports migration and later withdrawal of the old context, but omits one new-path readiness claim. Both a safe evolution and an unprotected gap remain possible, so the verdict stays \emph{Indeterminate}. The ground requests that readiness property for the affected node and route epoch. A later claim either establishes (\ref{eq:migration-continuity}) or proves that migration preceded readiness. Resource scarcity may delay a conclusion, but cannot lower the threshold for \emph{Verified} or \emph{Violated}. The resulting record---flow, property, verdict, contexts, and validity interval---provides Section~IV with bounded security knowledge for operational-legitimacy verification. 
 
 
-\section{Role-Aware Distributed Verification of Operational Legitimacy}
+\section{Role-Aware Operational Legitimacy Verification}
 \label{sec:point3}
 
 The preceding two sections establish a trustworthy cryptographic foundation under complex security-state management and enable the ground segment to reliably perceive onboard security states, respectively. Building on this foundation, this section takes the next step toward operational legitimacy through system-level verification that actively generates and coordinates evidence across the system. 
@@ -469,21 +474,74 @@ Only messages that pass these checks are dispatched simultaneously to the primar
 Each module processes the same authenticated input independently, and their outputs are forwarded to an output verification module.
 The operation is accepted only when the resulting outputs satisfy a predefined consistency rule; otherwise, execution is blocked, deferred, or reported as anomalous.
 
-The use of heterogeneous implementations is essential to reducing common-mode compromise.
-Although redundant or backup processing units are widely employed in satellite systems, homogeneous replicas may share the same hardware vulnerabilities, software defects, or exploitable implementation assumptions.
-We therefore advocate implementing the shadow modules using diverse hardware architectures, software stacks, or processing paradigms, so that a single attack or fault is less likely to induce the same erroneous output across all modules.
-For example, the primary and shadow modules may employ different CPU architectures, while an additional shadow implementation may be realized on an FPGA.
-Such diversity allows output agreement to provide stronger evidence of correct execution than conventional homogeneous redundancy.
+Heterogeneous implementations help mitigate common-mode failures and compromises.
+Although redundant processing units are widely used in satellite systems, homogeneous replicas may share the same vulnerabilities, defects, or dependencies, allowing a single fault or attack to produce consistent but erroneous outputs.
+We therefore employ diverse CPU architectures, software implementations, or processing paradigms, such as combining CPU- and FPGA-based modules, so that output agreement provides stronger evidence of correct execution.
 
+To accommodate onboard resource constraints, heterogeneous redundancy is activated selectively for security-critical operations.
+The primary module generates the output to be committed, while the shadow modules produce candidate outputs without directly affecting the controlled system. 
+%视任务重要性、可接收的时延、攻击发生概率、可用资源等，动态调控影子模块的激活数量
+The number of active shadow modules could be autonomously adjusted onboard based on operation criticality, tolerable latency, estimated attack likelihood, and available resources; the design of such an adaptive scheduling mechanism is left for future work. 
 
-
-
-\section{Case Study}
+\section{Integrated Case Study and Evaluation}
 %混合攻击场景
 %这里重要的是展示对多类攻击的多层级过滤；先过滤dos，可以基于帧格式、mode错误等，然后再对抗重放攻击。
-attacks with wrong clear mode
+This section integrates the mechanisms proposed in the preceding sections into an end-to-end case study and evaluates their effectiveness under representative attack scenarios.
 
-attack with 
+\subsection{Attack Scenarios}
+As shown in Fig. \ref{fig:point2}, we consider four representative attack scenarios involving compromised satellite terminals, a TT\&C station, the TT\&C center, and an onboard processing module.
+
+In the first attack scenario (A1), adversaries compromise legitimate satellite terminals (STs) distributed worldwide, thereby gaining access to the satellite network and transmitting data frames over the user links. These attackers are assumed to know the system protocol but lack the credentials and capabilities required to generate valid TT\&C commands.
+
+In the second attack scenario, adversaries compromise a TT\&C station and gain access to the TT\&C uplink. By observing legitimate transmissions, they can learn the format of clear-mode frames and record previously transmitted ciphered-mode frames. These capabilities enable clear-mode frame injection (A2a) and ciphered-mode frame replay (A2b), respectively.
+
+In the third attack scenario (A3), adversaries partially compromise the TT\&C center and obtain the capability to generate forged commands. In the fourth attack scenario (A4), adversaries compromise an onboard processing module and manipulate its execution or output.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=1 \columnwidth]{figure/CaseStudyV3.pdf}
+\caption{
+Representative attack scenarios against a satellite constellation with onboard routing and processing. A1 denotes TT\&C DDoS attacks launched from compromised satellite terminals. 
+For attacks originating from a compromised TT\&C station, A2a and A2b denote clear-mode frame injection and ciphered-mode frame replay, respectively. 
+A3 denotes command forgery originating from a compromised TT\&C center, while A4 denotes the compromise of an onboard processing module. Legitimate processing paths are shown by solid green lines, whereas attack paths are shown by red dashed lines.
+}
+\label{fig:point2}
+\end{figure}
+
+\subsection{Simulation Setting for Baseline and Attack Traffic}
+
+We consider a baseline legitimate TT\&C uplink rate of $R_{\mathrm{L}}=1~\mathrm{Mb/s}$ and superimpose the following attack traffic. 
+We parameterize the attack workload according to the adversaries' access capabilities and the capacities of the corresponding communication links.
+For A1, we assume that an adversary exploits a common vulnerability to compromise $K=100$ satellite terminals.
+Each compromised terminal can transmit at a maximum rate of
+$R_{\mathrm{A1}}=20~\mathrm{Mb/s}$.
+To model different attack intensities, each terminal generates malicious traffic at a rate of
+$\lambda R_{\mathrm{A1}}$, where $\lambda\in[0,1]$ is a normalized attack-intensity parameter.
+The aggregate A1 traffic rate is therefore
+$K\lambda R_{\mathrm{A1}}$, ranging from $0$ to $2~\mathrm{Gb/s}$. 
+For A2, we consider one compromised TT\&C station that launches either clear-mode frame injection (A2a) or ciphered-mode frame replay (A2b) at a rate of
+$R_{\mathrm{A2}}=5~\mathrm{Mb/s}$. 
+For A3, a compromised TT\&C center generates forged commands at a rate of $R_{\mathrm{A3}}=0.1~\mathrm{Mb/s}$, which produce erroneous system effects only when coordinated with A4, where the compromised primary module of the execution unit generates incorrect outputs.
+
+\subsection{Resource-Constrained Processing Model}
+
+To capture the constraints imposed by limited onboard processing resources, we adopt a fluid-based overload model with probabilistic frame dropping \cite{misra2000fluid}. 
+Each processing stage $j$ is assigned a nominal capacity $C_j$, and $r_j$ denotes the aggregate traffic rate reaching that stage after upstream filtering and frame dropping. 
+No resource-induced frame loss occurs when $r_j \leq C_j$. 
+When $r_j>C_j$, each incoming frame is independently dropped with probability
+\[
+p_j^{\mathrm{drop}} = 1-\frac{C_j}{r_j},
+\]
+such that the expected output rate does not exceed $C_j$.
+
+The nominal processing capacities of the onboard router, OSMD unit, and MTC unit are set to $1000~\mathrm{Mb/s}$, $500~\mathrm{Mb/s}$, and $50~\mathrm{Mb/s}$, respectively. 
+The execution unit has a capacity of $500~\mathrm{Mb/s}$ when shadow execution is disabled, which is reduced to $250~\mathrm{Mb/s}$ when heterogeneous shadow execution and output verification are enabled. 
+
+\subsection{Simulation Results}
+
+
+
+
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -499,3 +557,5 @@ attack with
 
 % that's all folks
 \end{document}
+
+
