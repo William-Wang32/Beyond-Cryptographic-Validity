@@ -309,7 +309,6 @@ Overall, each processing stage relies only on information established by the pre
 The admissible frame set is progressively narrowed before cryptographic execution, while persistent state transitions are postponed until the corresponding inputs have been authenticated.
 
 
-
 \section{Constrained Security-State Perception and Reconstruction} 
 \label{sec:point2}
 % 本段承接Section II的星上可信状态管理，转向“地面如何获得可信安全认知”的问题。
@@ -521,21 +520,26 @@ The aggregate A1 traffic rate is therefore
 $K\lambda R_{\mathrm{A1}}$, ranging from $0$ to $2~\mathrm{Gb/s}$. 
 For A2, we consider one compromised TT\&C station that launches either clear-mode frame injection (A2a) or ciphered-mode frame replay (A2b) at a rate of
 $R_{\mathrm{A2}}=5~\mathrm{Mb/s}$. 
-For A3, a compromised TT\&C center generates forged commands at a rate of $R_{\mathrm{A3}}=0.1~\mathrm{Mb/s}$, which produce erroneous system effects only when coordinated with A4, where the compromised primary module of the execution unit generates incorrect outputs.
+For A3, a compromised TT\&C center generates forged commands at a rate of $R_{\mathrm{A3}}=0.1~\mathrm{Mb/s}$, which produce erroneous system effects only when coordinated with A4, where the compromised primary module of the execution unit generates incorrect outputs. 
 
 \subsection{Resource-Constrained Processing Model}
+\subsection{Resource-Constrained Processing Model}
 
-To capture the constraints imposed by limited onboard processing resources, we adopt a fluid-based overload model with probabilistic frame dropping \cite{misra2000fluid}. 
-Each processing stage $j$ is assigned a nominal capacity $C_j$, and $r_j$ denotes the aggregate traffic rate reaching that stage after upstream filtering and frame dropping. 
-No resource-induced frame loss occurs when $r_j \leq C_j$. 
-When $r_j>C_j$, each incoming frame is independently dropped with probability
-\[
-p_j^{\mathrm{drop}} = 1-\frac{C_j}{r_j},
-\]
-such that the expected output rate does not exceed $C_j$.
+The onboard processing chain consists of four stages: the router, OSMD, MTC, and execution unit. Although these stages perform different security functions, their finite processing resources are represented using a common threshold-based fluid model.
 
-The nominal processing capacities of the onboard router, OSMD unit, and MTC unit are set to $1000~\mathrm{Mb/s}$, $500~\mathrm{Mb/s}$, and $50~\mathrm{Mb/s}$, respectively. 
-The execution unit has a capacity of $500~\mathrm{Mb/s}$ when shadow execution is disabled, which is reduced to $250~\mathrm{Mb/s}$ when heterogeneous shadow execution and output verification are enabled. 
+For a processing stage $j$ with an incoming traffic rate $r_j$ and a nominal processing capacity $C_j$, all incoming frames can receive the corresponding processing when $r_j \leq C_j$. When $r_j > C_j$, only a fraction $C_j/r_j$ of the incoming frames can be processed. Accordingly, the probability that an incoming frame is selected for processing is modeled as $p_j^{\mathrm{sel}}=\min(1,C_j/r_j)$. This abstraction follows the general idea of capacity-constrained fluid modeling \cite{misra2000fluid}. The treatment of the unselected fraction $1-p_j^{\mathrm{sel}}$ depends on the security role of each stage.
+
+At the router and OSMD, the selected frames undergo probabilistic security inspection. The router applies role-aware admission control to detect A1 traffic, while the OSMD performs state-aware and replay-aware verification to detect A2 traffic. Frames identified as malicious are rejected. Frames not selected for inspection bypass the current stage and are forwarded to the next stage. Therefore, insufficient inspection capacity reduces detection coverage without directly causing frame loss.
+
+The MTC is the final mandatory gate for cryptographic validity. Frames selected within its processing capacity undergo cryptographic verification, whereas frames that cannot be processed are directly discarded rather than forwarded without verification. Thus, when $r_{\mathrm{MTC}}>C_{\mathrm{MTC}}$, the resource-induced frame-drop probability is $p_{\mathrm{MTC}}^{\mathrm{drop}}=1-C_{\mathrm{MTC}}/r_{\mathrm{MTC}}$. This fail-closed behavior prevents cryptographically unverified frames from reaching the execution unit, even though legitimate frames may also be dropped under severe overload.
+
+The processing capacity of the primary execution module is matched to the maximum output rate of the MTC. Therefore, all frames admitted by the MTC can be processed by the primary module in real time. Heterogeneous shadow modules are additionally activated to detect the coordinated A3--A4 attack. Because shadow execution incurs additional processing overhead, only a fraction of the admitted frames may receive shadow verification when the incoming rate exceeds the available shadow-processing capacity.
+
+Let $C_{\mathrm{shadow}}$ denote the available capacity for heterogeneous shadow execution, and let $r_{\mathrm{exec}}$ denote the traffic rate admitted by the MTC. The probability that a frame is selected for shadow verification is modeled as $p_{\mathrm{shadow}}=\min(1,C_{\mathrm{shadow}}/r_{\mathrm{exec}})$. When $r_{\mathrm{exec}}\leq C_{\mathrm{shadow}}$, all frames undergo shadow execution, and an A3--A4 attack is detected with probability one. When $r_{\mathrm{exec}}>C_{\mathrm{shadow}}$, only a fraction of the frames are shadow-executed. Frames not selected for shadow verification are still processed by the primary module and are allowed to proceed. Consequently, limited shadow resources do not reduce legitimate traffic delivery, but may allow attacks involving a compromised primary module to escape detection.
+
+The nominal capacities of the router, OSMD, and MTC are set to $C_{\mathrm{router}}=1000~\mathrm{Mb/s}$, $C_{\mathrm{OSMD}}=500~\mathrm{Mb/s}$, and $C_{\mathrm{MTC}}=50~\mathrm{Mb/s}$, respectively. The primary execution capacity is configured to support all traffic admitted by the MTC, while $C_{\mathrm{shadow}}$ is varied in the corresponding experiments to evaluate the tradeoff between shadow-verification coverage and processing overhead.
+
+
 
 \subsection{Simulation Results}
 
