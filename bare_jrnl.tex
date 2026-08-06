@@ -311,85 +311,39 @@ The admissible frame set is progressively narrowed before cryptographic executio
 
 \section{Constrained Security-State Perception and Reconstruction} 
 \label{sec:point2}
-% 本段承接Section II的星上可信状态管理，转向“地面如何获得可信安全认知”的问题。
-% 同时界定本节的保证对象是保护上下文持续演化的端到端业务流。
-Section~II established how complex security states can be managed and applied onboard. A different question is whether the ground can obtain trustworthy and operationally useful knowledge of how those states evolve. The assurance target is an end-to-end service flow whose protection context may change with platform status, Security Association (SA) and key lifecycles, policy updates, routing changes, and satellite resets.
+% 承接Section II：从“星上状态如何可信管理”转向“地面在不可完整披露、不可完整下传时能够可信知道什么”。
+Section~II established a trustworthy onboard basis for managing and applying complex security states. The remaining question is what the ground can reliably infer when those states cannot be fully exported. Existing mechanisms provide useful but fragmented observations: CCSDS SDLS and its Extended Procedures manage SAs and associated monitoring and control functions \cite{ccsds2022sdls,ccsds2020sdlsep}, while RATS provides a generic architecture for generating and appraising evidence about an attester's operational state \cite{rfc9334rats}. However, individually valid reports do not establish that the relevant objects jointly formed the intended protection context of an end-to-end service flow over time.
 
-% 本段用路径迁移场景说明局部状态分别正常仍不足以证明业务流始终受到正确保护。
-% 进一步明确地面目标是判断流级安全属性，而不是复制完整、敏感的星上内部状态。
-Consider a protected flow migrating from an old satellite path to a newly established path. Every participating node may individually report a healthy platform and an active SA, yet these local reports cannot establish whether the new protection context became ready before traffic migration or whether the old context remained valid until migration completed. The objective is therefore not to reproduce a complete copy of sensitive onboard states at the ground. Instead, the ground needs sufficient and trustworthy knowledge to determine whether selected flow-level security properties held over a specified operational interval.
-
-% 本段概括本节同时面对的披露约束和星地资源约束，并给出三阶段技术主线。
-% 三个阶段依次回答“判断什么、凭什么判断、资源不足时优先获得什么”。
-This objective faces two distinct constraints. Some state values, cross-layer associations, and temporal relationships should remain within the onboard trust boundary, while intermittent and capacity-limited return links cannot carry all admissible evidence in real time. We therefore first define what the ground must distinguish, then transform the relevant state into disclosure-safe evidence, and finally select that evidence for progressive reconstruction.
+% 用路径迁移界定问题，并给出本节三阶段主线。
+Consider a protected flow migrating to a new satellite path. A healthy platform and an active SA on the new path do not prove that the new protection context became ready before traffic moved or that the old context remained valid until migration completed. The objective is therefore not to reproduce a complete copy of sensitive onboard state, but to reconstruct sufficient evidence for judging selected flow-level security properties. Two constraints apply: some state values and cross-layer relationships must remain inside the onboard trust boundary, while intermittent return links cannot carry all admissible evidence in real time. We address them through three steps: define the required security semantics, encode them as disclosure-safe evidence, and progressively deliver evidence according to its contribution to the ground-side judgment.
 
 \subsection{Flow-Centric Security-State Semantics}
-% 本段说明现有机制分别观察SA、平台、路由和策略等局部对象，指出局部有效性不能推出业务流级保护正确性。
-% 其作用是建立统一状态语义的必要性，并说明本文是在已有基础能力之上弥合跨对象状态断层。
-Existing mechanisms provide separate views of individual security objects. CCSDS SDLS manages data-link SAs \cite{ccsds2022sdls}, remote attestation reports platform integrity \cite{rfc9334rats}, and routing and policy functions maintain their own states. These views show whether a node is healthy, an SA is active, or a route is reachable, but not whether the objects jointly form the intended protection context of a service flow.
+% Baseline -> gap -> 本文扩展：从分散对象状态提升为持久业务流上的跨对象、跨时间安全语义。
+Existing SA management, platform attestation, routing, and policy functions describe individual objects or subsystems, whereas flow security depends on their relationships. We therefore use a persistent service-flow identity to associate five state categories at each participating node: platform and boot instance, protection mode and SA binding, key epoch, policy version, and route epoch. The identity remains stable when the path, SA, or key changes, allowing rekeying, path migration, and reset recovery to be related to one service context.
 
-% 本段提出以持久业务流标识关联五类运行状态，使同一逻辑业务流在换钥、换路和更换SA后仍可连续跟踪。
-% 同时说明状态模型不仅描述静态对象，也记录决定安全演化的关键转换事件。
-We use a persistent service-flow identity to relate five state categories at each participating node: platform and boot instance, protection mode and SA binding, key epoch, policy version, and route epoch. The identity remains stable when the path, SA, or key changes. The model also records security-relevant events such as SA establishment and withdrawal, rekeying, path migration, and reset recovery.
-
-% 本段将业务流安全要求细化为状态合法性、绑定一致性、时间连续性和转换安全性四个层次。
-% 路径迁移不等式给出贯穿本节的直观判据，并用复位场景说明上下文边界同样必须受约束。
-Four requirements determine whether the evolution is secure. \emph{State validity} checks that each object remains usable. \emph{Binding consistency} checks that the flow, SA, key, policy, and route epoch refer to the same protection context. \emph{Temporal continuity} requires protection throughout the service interval, not only at reporting instants. \emph{Transition safety} constrains the order of changes. For a path migration,
-\begin{equation}
-t_{\mathrm{new\ protection}}
-\leq t_{\mathrm{migration}}
-\leq t_{\mathrm{old\ withdrawal}} .
-\label{eq:migration-continuity}
-\end{equation}
-The new context must be ready before carrying traffic, and the old context must remain usable until migration completes. After a reset, state and evidence must likewise bind to the new boot instance.
-
-% 本段总结第一阶段的输出：面向安全属性的依赖模型，而非完整事件日志。
-% 该模型为下一阶段规定必须证明的状态关系和边界事件，但暂不讨论具体披露方式。
-The output is a property-dependency model identifying the relationships, boundary events, and contexts needed to decide each flow-level property. It tells the next stage what must be demonstrated, without yet deciding how sensitive state is disclosed.
+% 四类属性定义“地面究竟要判断什么”。
+Four properties characterize whether that context remains secure. \emph{State validity} checks whether each referenced object remains usable. \emph{Binding consistency} checks whether the flow, SA, key, policy, and route epoch belong to the same protection context. \emph{Temporal continuity} requires protection throughout the service interval. \emph{Transition safety} constrains the order of state changes. For a path migration, this requires \(t_{\mathrm{new\ protection}} \leq t_{\mathrm{migration}} \leq t_{\mathrm{old\ withdrawal}}\).
+The new context must be ready before carrying traffic, and the old context must remain usable until migration completes. The output is a property-dependency model specifying the states, relationships, boundary events, and contexts required to judge each flow-level property.
 
 \subsection{Disclosure-Safe Evidence and Sound Reconstruction}
+% Baseline -> gap：RATS和受限披露证明已有可信证据与选择性披露基础，但没有定义卫星业务流跨对象、跨时间的声明语义。
+RATS establishes evidence and appraisal roles and explicitly recognizes that evidence may contain sensitive information \cite{rfc9334rats}; constrained-disclosure attestation further shows that selected properties can be proven without releasing a complete measurement log \cite{eckel2023racd}. These mechanisms provide the foundation, but they do not define the flow-level, cross-object, and temporal claims needed for satellite protection transitions.
 
-% 本段明确第二阶段暂不考虑传输资源不足，只研究“允许地面看到什么”的语义披露边界。
-% 重点指出敏感性不仅来自单个字段，还可能来自跨层关联和联合时序。
-This stage temporarily assumes sufficient resources to deliver all evidence permitted by the disclosure policy. Its constraint is semantic: some information must not reach the ground verifier in raw form. An SA identifier, key epoch, policy, route change, or mission mode may reveal a sensitive value; their association and timing may further expose mission activities. Disclosure control must therefore cover values, cross-layer relationships, and temporal correlations.
+% 本文扩展：将原始状态转换为最少但足够的属性声明。
+We therefore export authenticated property claims rather than raw state. Instead of disclosing a new SA identifier and its exact activation time, a satellite may assert that ``the protection context associated with this flow and route epoch was operational before traffic migration.'' The claim preserves the required migration ordering while hiding implementation-specific identifiers and, when required, precise event times. Each claim binds a controlled flow identity, reporting node or role, boot and route contexts, validity interval, asserted property, provenance, and freshness. The OSMD unit evaluates the property against authoritative operational state, while the MTC unit protects the claim-authentication key, preserving the trust-boundary separation of Section~\ref{sec:point1}.
 
-% 本段说明从原始状态转向属性证据的基本思想，并继续使用路径迁移案例展示“最少但充分”的披露。
-% 证据保留判断转换顺序所必需的语义，同时隐藏具体标识和精确事件时间。
-The satellite therefore reports authenticated properties rather than raw state. Instead of disclosing a new SA and its activation time, it can assert that ``the protection context associated with this flow and route epoch was operational before traffic migration.'' The claim preserves the ordering required by (\ref{eq:migration-continuity}) while hiding identifiers and, when required, exact event times.
-
-% 本段规定每项证据必须绑定的对象、上下文、有效期、来源和新鲜度，并说明证据为何可信。
-% 通过OSMD负责状态语义、MTC保护认证密钥，保持与Section II最小密码核心原则的一致性。
-Each claim binds the reporting node or role, a controlled flow identifier, boot and route contexts, validity interval, asserted property, provenance, and freshness. The OSMD unit evaluates the property against its authoritative operational state, while the MTC unit protects the claim-authentication key. This division keeps state interpretation outside the minimal cryptographic core and prevents ordinary onboard software from forging evidence. Compromise of this authoritative evidence path is outside the assurance boundary.
-
-% 本段根据披露敏感程度介绍几类可选证据表示，并用RATS和受限披露证明说明其技术基础。
-% 段末突出本文创新不在重新设计证明原语，而在定义卫星业务流跨对象、跨路径和跨时间的声明语义。
-The representation depends on sensitivity. A reportable property may use a signed assertion, a stable interval may use an authenticated summary, and a sensitive membership or relation may use a commitment or zero-knowledge proof. RATS provides the underlying attestation architecture \cite{rfc9334rats}, and constrained-disclosure attestation demonstrates property verification without complete measurements \cite{eckel2023racd}. Our focus is the claim semantics that relate a persistent flow to its platform, protection, policy, route, and transition context.
-
-% 本段说明地面重构的是与模型和证据一致的候选演化，而不是唯一的原始状态历史。
-% 三值结论体现保守判断原则，并将证据冲突单独识别为异常，防止隐藏或缺失信息被误解释为安全。
-Because disclosure hides part of the trajectory, the ground retains all evolutions consistent with the model and received claims rather than reconstructing one internal-state history. A property is \emph{Verified} only when every remaining candidate satisfies it and \emph{Violated} only when every candidate violates it. If safe and unsafe candidates remain, the result is \emph{Indeterminate}; mutually inconsistent claims instead indicate an evidence or model anomaly. This conservative interpretation follows runtime verification under partial information \cite{leucker2019partial}: hidden or missing information may reduce decisiveness, but cannot support an otherwise unjustified conclusion.
+% 说明可复用已有证明原语，本文创新在claim semantics与保守重构规则。
+The representation can match the sensitivity of the claim: a reportable property may use a signed assertion, a stable interval an authenticated summary, and a sensitive membership or relationship a commitment or zero-knowledge proof. Our focus is therefore the claim semantics rather than a new disclosure primitive. Because disclosure intentionally removes information, the ground does not force a unique internal-state history. It retains all evolutions consistent with the dependency model and received claims. A property is \emph{Verified} only when all remaining evolutions satisfy it and \emph{Violated} only when all violate it; otherwise the verdict is \emph{Indeterminate}. Mutually inconsistent claims indicate an evidence or model anomaly. This conservative rule is consistent with runtime verification under partial information \cite{leucker2019partial}.
 
 \subsection{Resource-Aware Progressive Reconstruction}
-% 本段在第二阶段披露边界不变的前提下加入带宽、接触窗口、存储、计算、能耗和时效约束。
-% 同时区分DTN的可靠送达能力与本文要解决的“有限窗口内优先传哪些证据”问题。
-This stage inherits the disclosure boundary and adds limits on bandwidth, contact duration, storage, computation, energy, evidence lifetime, and decision deadlines. It selects only among admissible claims and never reveals prohibited state to accelerate reconstruction. Delay-tolerant networking can deliver evidence across disrupted contacts \cite{rfc9171bpv7}, but it does not decide which evidence deserves a scarce contact opportunity.
+% Baseline -> gap：DTN解决间歇连接下的传输，SDLS EP提供监测控制，但“有限窗口先传哪些证据”仍需由安全判断语义决定。
+The final step adds return-link scarcity without relaxing the disclosure boundary. Bundle Protocol Version~7 supports delay- and disruption-tolerant transport \cite{rfc9171bpv7}, while CCSDS SDLS Extended Procedures provide standardized monitoring and control services \cite{ccsds2020sdlsep}. These mechanisms establish how information can be conveyed or reported, but application-specific selection according to its contribution to a security verdict remains a separate problem.
 
-% 本段给出证据优先级的核心依据：证据对当前安全结论的实际贡献，而不是普通数据优先级。
-% 先按能否形成确定结论、覆盖关键转换和满足时效排序，再以传输与生成成本区分价值相近的证据。
-Evidence value depends on its contribution to the current judgment. Many stable-state reports may change nothing, whereas one claim that the new SA was ready before migration may remove the last unsafe candidate. Priority is therefore given to evidence that establishes a violation, enables a conclusive verdict, covers a critical transition, is about to expire, or supports other claims. Size, generation cost, energy, and deadline distinguish evidence of otherwise similar value.
+% 本文扩展：按判断价值而非普通业务优先级选择证据，并形成星地闭环。
+We prioritize admissible evidence by decision value rather than generic data priority. Evidence that establishes a violation, closes an unresolved property gap, covers a critical transition, or is about to lose freshness is preferred; transmission size, generation cost, energy, and deadline distinguish evidence of otherwise similar value. Stable intervals can be compressed into authenticated summaries, whereas critical transitions remain independently verifiable claims. After each contact, the ground verifies claim provenance, context, interval, freshness, and model version and removes inconsistent state evolutions. If the verdict remains \emph{Indeterminate}, it requests only the unresolved property for the relevant flow, node or role, epoch, and interval. Such requests cannot cross the disclosure boundary established above.
 
-% 本段说明选择性传输成立的工程前提是单项证据能够独立验证，而不依赖完整累积日志。
-% 通过稳定区间摘要、认证检查点和关键转换声明，实现粗粒度告警后的属性级定向调查。
-Selected evidence must remain independently verifiable. The onboard function therefore summarizes stable intervals, creates authenticated checkpoints, and issues separate claims for critical transitions, avoiding logs that can be validated only in full. CCSDS SDLS illustrates this staging: a compact report can signal a security event, while detailed diagnosis may require later state or log retrieval \cite{ccsds2022sdls}. Our follow-up is property-driven rather than an undifferentiated log request.
-
-% 本段描述分批证据驱动的星地闭环，包括证据校验、候选演化收缩、缺口分类和定向补证。
-% 不同缺失原因采用不同处置，且补证请求始终不能突破第二阶段确定的披露边界。
-Reconstruction then becomes a closed loop. After each contact, the ground verifies claim provenance, context, interval, freshness, and model version before removing incompatible evolutions. Evidence awaiting bandwidth can arrive later, policy-hidden evidence cannot be requested, and reset-invalidated or expired evidence requires a new claim. If the verdict remains \emph{Indeterminate}, the ground requests only the unresolved property for the relevant flow, node or role, epoch, and interval.
-
-% 本段以路径迁移案例闭合三个阶段：缺少新路径就绪证据时必须保持Indeterminate并定向请求该属性。
-% 段末提炼资源不足不降低结论可靠标准的原则，并说明本节输出如何支撑Section IV的运行合法性验证。
-Suppose the first contact reports migration and later withdrawal of the old context, but omits one new-path readiness claim. Both a safe evolution and an unprotected gap remain possible, so the verdict stays \emph{Indeterminate}. The ground requests that readiness property for the affected node and route epoch. A later claim either establishes (\ref{eq:migration-continuity}) or proves that migration preceded readiness. Resource scarcity may delay a conclusion, but cannot lower the threshold for \emph{Verified} or \emph{Violated}. The resulting record---flow, property, verdict, contexts, and validity interval---provides Section~IV with bounded security knowledge for operational-legitimacy verification. 
-
+% 路径迁移案例闭环，并给出本节输出。
+In the migration example, if the first contact reports migration and later withdrawal of the old context but omits new-path readiness, both a safe transition and an unprotected gap remain possible. The ground therefore requests only that readiness property. A later claim either establishes the required migration ordering or shows that migration preceded readiness. Resource scarcity may delay a conclusion, but cannot lower the threshold for \emph{Verified} or \emph{Violated}. The resulting record---flow, property, verdict, contexts, and validity interval---gives the ground a bounded situational view that complements the real-time distributed verification developed in Section~\ref{sec:point3}.
 
 \section{Role-Aware Operational Legitimacy Verification}
 \label{sec:point3}
